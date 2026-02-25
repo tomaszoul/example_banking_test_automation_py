@@ -1,0 +1,5 @@
+playwright>=1.56.0
+pytest>=8.0
+pytest-playwright>=0.5.0
+pytest-html>=4.0
+pytest-reportportal>=5.0
