@@ -2,9 +2,9 @@
 from playwright.sync_api import Page
 
 from src.banking.helpers.browser_helpers import (
+    apply_ci_buffer,
     navigate_to_bank,
     wait_for_angular,
-    _micro_delay_for_ci,
 )
 from src.banking.locators.selectors import (
     CustomerLoginPage,
@@ -41,7 +41,7 @@ class LoginPage:
         """Click login btn, wait for angular."""
         self.page.locator(CustomerLoginPage.login_btn).click()
         wait_for_angular(self.page)
-        _micro_delay_for_ci(0.15)  # CI/CD: login triggers navigation; runners need extra buffer
+        apply_ci_buffer(0.25)  # CI/CD: login triggers navigation; runners need extra buffer
 
     def login_as_customer(self, name: str) -> None:
         """Full flow: go_to_home → select_customer_login → select_user → click_login."""

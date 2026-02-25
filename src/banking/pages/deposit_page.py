@@ -1,7 +1,7 @@
 """Deposit page object for XYZ Banking Project."""
 from playwright.sync_api import Page
 
-from src.banking.helpers.browser_helpers import wait_for_angular, _micro_delay_for_ci
+from src.banking.helpers.browser_helpers import apply_ci_buffer, wait_for_angular
 from src.banking.locators.selectors import CustomerDashboard, DepositPageSelectors
 
 
@@ -16,12 +16,18 @@ class DepositPage:
         self.page.wait_for_selector('form[ng-submit="deposit()"]', state="visible", timeout=5000)
 
     def enter_amount(self, amount: int) -> None:
-        self.page.locator(DepositPageSelectors.amount_input).fill(str(amount))
+        """Wait for amount input to be ready, then fill. Ensures form is stable before input."""
+        loc = self.page.locator(DepositPageSelectors.amount_input)
+        loc.wait_for(state="visible", timeout=5000)
+        loc.fill(str(amount))
 
     def submit(self) -> None:
-        self.page.locator(DepositPageSelectors.submit_btn).click()
+        """Click submit, wait for Angular to process, apply CI buffer for balance update."""
+        btn = self.page.locator(DepositPageSelectors.submit_btn)
+        btn.wait_for(state="visible", timeout=5000)
+        btn.click()
         wait_for_angular(self.page)
-        _micro_delay_for_ci(0.1)  # CI/CD: balance update; runners process slower
+        apply_ci_buffer(0.25)  # CI/CD: balance update; runners process slower
 
     def expect_success(self) -> None:
         msg = self.page.locator(DepositPageSelectors.success_message).text_content() or ""
