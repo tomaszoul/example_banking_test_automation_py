@@ -59,7 +59,8 @@ playwright install chromium
 |------|---------|-------------|
 | **Smoke tests** | `python run_tests.py` or `run-tests` (after `pip install -e .`) | Fast feedback — all scenarios with one customer |
 | **Full run** | `python run_tests.py --full` | Every scenario × all 5 customers |
-| **Headed (visible browser)** | `python run_tests.py --headed` or `python run_tests.py --full --headed` | See the browser during the test run. Full Playwright Test UI is TypeScript-only; see [PLAYWRIGHT_ALTERNATIVES.md](PLAYWRIGHT_ALTERNATIVES.md). |
+| **Headed (visible browser)** | `python run_tests.py --headed` or `python run_tests.py --full --headed` | See the browser during the test run. |
+| **Playwright Test UI** | `python run_tests.py --ui` and/or `--local` and/or `--full` | TS Playwright Test UI in `playwright-ui/`: test picker, watch, time-travel. **All 4 combinations:** `--ui` (live, smoke), `--ui --full` (live, all tests), `--ui --local` (local, smoke), `--ui --local --full` (local, all tests). First time: `cd playwright-ui && npm install`. |
 | **Debug** | `python run_tests.py --debug` | Playwright Inspector; test pauses before each action—use Inspector to step or resume |
 | **Local app** | `python run_tests.py --local` | Auto-starts banking-app on :8081 |
 | **Open report** | `python run_tests.py --open` | Open HTML report in browser after run |
@@ -67,6 +68,22 @@ playwright install chromium
 | **Open all traces** | `python run_tests.py --open-trace-all` | After run: record + open all traces (works with `--local` or live) |
 
 Every test run generates a versioned HTML report under `test-reports/<runId>/report.html`. Only the latest **3 reports** are kept; older runs are pruned before each run.
+
+**Command matrix (all combinations):**  
+*Flags: `--full` = all 5 customers; `--local` = local app (else live); `--ui` = TS Playwright Test UI (else Python pytest).*
+
+| Command | Runner | Tests | App |
+|---------|--------|-------|-----|
+| `python run_tests.py` | Python | smoke | live |
+| `python run_tests.py --full` | Python | full | live |
+| `python run_tests.py --local` | Python | smoke | local |
+| `python run_tests.py --local --full` | Python | full | local |
+| `python run_tests.py --ui` | TS Playwright UI | smoke | live |
+| `python run_tests.py --ui --full` | TS Playwright UI | full | live |
+| `python run_tests.py --ui --local` | TS Playwright UI | smoke | local |
+| `python run_tests.py --ui --local --full` | TS Playwright UI | full | local |
+
+For reviewers: full command reference, env vars, and architecture are in [REVIEWER.md](REVIEWER.md).
 
 ```bash
 # Headless
@@ -76,6 +93,13 @@ python run_tests.py --full           # full run (all 5 users)
 # Headed (visible browser)
 python run_tests.py --headed         # smoke + visible browser
 python run_tests.py --full --headed  # full run + visible browser
+
+# Playwright Test UI (TS runner in playwright-ui/; all combos of --full and --local)
+cd playwright-ui && npm install     # first time only
+python run_tests.py --ui            # live app, smoke tests
+python run_tests.py --ui --full     # live app, all tests
+python run_tests.py --ui --local    # local app, smoke tests
+python run_tests.py --ui --local --full   # local app, all tests
 
 # Local app (download_app.py fetches index.html + Angular templates)
 python download_app.py              # first time: download app to banking-app/
@@ -101,6 +125,15 @@ python run_tests.py -k "not test_this_test_will_fail"
 ```
 
 **Detailed reviewer guide:** See [REVIEWER.md](REVIEWER.md) for all run variants, environment variables, and architecture notes. For Python vs Node.js Playwright and trace visualization, see [PLAYWRIGHT_ALTERNATIVES.md](PLAYWRIGHT_ALTERNATIVES.md).
+
+## Avoiding long freezes
+
+If a run appears to hang for minutes (e.g. at manager CRUD tests), it is usually due to the **live site** (globalsqa.com) being slow or unresponsive. Navigation uses a **30s timeout** so a single slow load will fail fast; use **`--local`** for stable, fast runs and CI:
+
+```bash
+python download_app.py              # once: fetch app into banking-app/
+python run_tests.py --local --full  # full run against local app
+```
 
 ## Test Stability (No Flakiness)
 

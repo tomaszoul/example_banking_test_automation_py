@@ -7,6 +7,24 @@ import pytest
 from src.banking.data.customers import Customer, Customers
 
 
+@pytest.hookimpl(tryfirst=True)
+def pytest_configure(config: pytest.Config) -> None:
+    """
+    Ensure every test run generates an HTML report.
+    When pytest is run directly (without run_tests.py), set report path and self-contained flag.
+    run_tests.py passes --html explicitly, so this only kicks in for bare pytest invocations.
+    """
+    htmlpath = getattr(config.option, "htmlpath", None)
+    if htmlpath is None:
+        from utils.reporting.report_config import build_run_id, report_dir, report_html_path
+
+        build_run_id()
+        report_dir_path = report_dir()
+        report_dir_path.mkdir(parents=True, exist_ok=True)
+        setattr(config.option, "htmlpath", str(report_html_path()))
+        setattr(config.option, "self_contained_html", True)
+
+
 def _get_page_from_item(item: pytest.Item):
     """Extract Playwright Page from test fixtures (page, or page objects with .page)."""
     funcargs = getattr(item, "funcargs", {})

@@ -1,15 +1,30 @@
 """
 Account Dashboard & Switching — welcome, default account, dropdown, currency switching, deposit isolation.
 """
+import time
+
 import pytest
 
 from src.banking.data.customers import CURRENCIES, all_account_numbers
 
+_SETUP_RETRIES = 3
+_SETUP_RETRY_DELAY = 1.0
+
 
 @pytest.fixture(autouse=True)
 def _before_each(login_page, dashboard_page, bank_user):
-    login_page.login_as_customer(bank_user.name)
-    dashboard_page.expect_loaded()
+    """Robust setup: retry login + dashboard load to handle slow network / Angular flakiness."""
+    last_error = None
+    for attempt in range(_SETUP_RETRIES):
+        try:
+            login_page.login_as_customer(bank_user.name)
+            dashboard_page.expect_loaded()
+            return
+        except Exception as e:
+            last_error = e
+            if attempt < _SETUP_RETRIES - 1:
+                time.sleep(_SETUP_RETRY_DELAY)
+    raise last_error
 
 
 def test_should_show_correct_welcome_name_default_account_and_dropdown_options(

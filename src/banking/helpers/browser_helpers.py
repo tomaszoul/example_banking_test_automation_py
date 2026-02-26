@@ -27,7 +27,8 @@ def apply_ci_buffer(seconds: float = 0.25) -> None:
 
 def navigate_to_bank(page: Page) -> None:
     """Navigate to the banking app base URL and wait for Angular to settle."""
-    page.goto(BANK_BASE_URL, wait_until="domcontentloaded", timeout=60000)
+    # 30s avoids multi-minute freezes when the live site (globalsqa) is slow; use --local for stability.
+    page.goto(BANK_BASE_URL, wait_until="domcontentloaded", timeout=30_000)
     wait_for_angular(page)
     apply_ci_buffer(0.25)  # CI/CD: runners are slower; buffer before first interaction
 

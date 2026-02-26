@@ -1,4 +1,39 @@
-# Banking E2E Test Suite (Python) — Reviewer Guide
+# Banking E2E Test Suite — Reviewer Guide
+
+**For reviewers:** This doc is the single reference. Start with **Flags** and the **Command matrix** below; then use **How to Run** for copy-paste commands. **Architecture** and **Test coverage** are at the end.
+
+---
+
+## Flags (what they do)
+
+| Flag | Effect |
+|------|--------|
+| *(none)* | **Python pytest** runner, **smoke** tests (1 customer), **live** app (globalsqa.com) |
+| `--full` | **Full** test set: same scenarios × **all 5 customers** (Hermoine, Harry, Ron, Albus, Neville) |
+| `--local` | **Local** app: auto-starts server on **:8081** from `banking-app/` (run `download_app.py` once first) |
+| `--ui` | **TS Playwright Test UI** (Node in `playwright-ui/`): interactive picker, watch, time-travel. Requires `cd playwright-ui && npm install` once. |
+
+Flags combine in all ways. **Without `--ui`** = Python tests; **with `--ui`** = TypeScript Playwright tests in the official UI.
+
+---
+
+## Command matrix (all combinations)
+
+| Command | Runner | Tests | App |
+|---------|--------|-------|-----|
+| `python run_tests.py` | Python | smoke | live |
+| `python run_tests.py --full` | Python | full | live |
+| `python run_tests.py --local` | Python | smoke | local |
+| `python run_tests.py --local --full` | Python | full | local |
+| `python run_tests.py --ui` | TS Playwright UI | smoke | live |
+| `python run_tests.py --ui --full` | TS Playwright UI | full | live |
+| `python run_tests.py --ui --local` | TS Playwright UI | smoke | local |
+| `python run_tests.py --ui --local --full` | TS Playwright UI | full | local |
+
+- **Smoke** ≈ 18–20 tests (one customer). **Full** ≈ 66–75 (same scenarios × 5 customers).
+- **Live** = [GlobalSQA Banking Project](https://www.globalsqa.com/angularJs-protractor/BankingProject/#/login). **Local** = `http://127.0.0.1:8081/#/login`.
+
+---
 
 ## How to Run
 
@@ -9,10 +44,13 @@
    ```bash
    python -m pip install -r requirements.txt
    ```
-3. **Install Playwright browsers (Chromium only):**
+3. **Playwright browser (Chromium):**
    ```bash
    playwright install chromium
    ```
+4. **For `--ui` only:** Node in `playwright-ui/`: run `cd playwright-ui && npm install` once.
+
+*The **Command matrix** above lists all eight main combinations (Python vs TS UI × smoke vs full × live vs local).*
 
 ### Run Modes: Smoke vs Full Run
 
@@ -33,7 +71,6 @@ python run_tests.py                 # headless, smoke tests (single user)
 python run_tests.py --full          # headless, full run (all 5 users)
 python run_tests.py --headed        # smoke + visible browser
 python run_tests.py --full --headed # full run + visible browser
-python run_tests.py --headed        # visible browser
 python run_tests.py --debug         # step-through debug (Playwright Inspector)
 ```
 
@@ -44,8 +81,7 @@ python run_tests.py --local                 # headless, smoke tests, auto-starts
 python run_tests.py --local --full         # headless, full run, auto-starts local server
 python run_tests.py --local --headed       # smoke + local + visible browser
 python run_tests.py --local --full --headed  # full run + local + visible browser
-python run_tests.py --local --headed       # visible browser
-python run_tests.py --local --debug         # step-through debug
+python run_tests.py --local --debug        # step-through debug
 ```
 
 ### Configuration Commands (Parity with TypeScript package.json)
@@ -57,10 +93,10 @@ python run_tests.py --local --debug         # step-through debug
 | `test:local` / `test:local:smoke` | `python run_tests.py --local` | Smoke, headless, local app |
 | `test:local:full` | `python run_tests.py --local --full` | Full run, headless, local app |
 | `test:headed` | `python run_tests.py --headed` | Visible browser |
-| `test:ui` | `python run_tests.py --headed` | Headed (visible browser; full Playwright UI is TS-only) |
-| `test:ui:full` | `python run_tests.py --full --headed` | Full run + headed |
-| `test:local:ui` | `python run_tests.py --local --headed` | Smoke + local + headed |
-| `test:local:ui:full` | `python run_tests.py --local --full --headed` | Full run + local + headed |
+| `test:ui` | `python run_tests.py --ui` | TS Playwright Test UI (live, smoke) |
+| `test:ui:full` | `python run_tests.py --ui --full` | TS Playwright Test UI (live, full) |
+| `test:local:ui` | `python run_tests.py --ui --local` | TS Playwright Test UI (local, smoke) |
+| `test:local:ui:full` | `python run_tests.py --ui --local --full` | TS Playwright Test UI (local, full) |
 | `test:debug` | `python run_tests.py --debug` | Playwright Inspector (PWDEBUG=1) |
 | `test:report:open` | `python run_tests.py --open` | Run tests, then open HTML report |
 | — | `python run_tests.py --open-trace-failed` | After run: open traces from failed tests (works with `--local` or live) |
@@ -74,12 +110,13 @@ python run_tests.py --local --debug         # step-through debug
 | `python run_tests.py --full` | Full run (all 5 users), headless |
 | `python run_tests.py --headed` | Smoke + visible browser |
 | `python run_tests.py --full --headed` | Full run + visible browser |
-| `python run_tests.py --headed` | Visible browser window |
 | `python run_tests.py --debug` | Debug with Playwright Inspector |
 | `python run_tests.py --local` | Smoke + local app (auto-starts server on :8081) |
 | `python run_tests.py --local --full` | Full run + local app |
 | `python run_tests.py --local --headed` | Smoke + local + visible browser |
 | `python run_tests.py --local --full --headed` | Full run + local + visible browser |
+| `python run_tests.py --ui` | Playwright Test UI (live, smoke); full traces, screenshots, network |
+| `python run_tests.py --ui --local` | Playwright Test UI (local app, smoke) |
 | `python run_tests.py --open-trace-failed` | Open traces from failed tests (standalone or after run) |
 | `python run_tests.py --open-trace-all` | Record + open all traces in viewer |
 | `python run_tests.py --local --open-trace-failed` | Run local, then open failed traces |
@@ -146,12 +183,14 @@ If `banking-app/index.html` does not exist, `run_tests.py --local` will warn and
 
 ---
 
-## Test Coverage (18 tests)
+## Test coverage
 
-| Spec File | Tests | What it covers |
-|-----------|-------|----------------|
+**Smoke** (one customer): ~18 test nodes. **Full** (all 5 customers): ~66 test nodes (same scenarios × 5).
+
+| Spec file | Tests (smoke) | What it covers |
+|-----------|---------------|----------------|
 | test_customer_login | 2 | Home page options, dropdown users, login/logout flow |
-| test_account_switching | 5 | Welcome name, account dropdown, currency switching, deposit isolation |
+| test_account_switching | 5 | Welcome name, account dropdown, currency switching, deposit isolation, rapid switch |
 | test_deposit | 2 | Deposit + balance update, empty/zero submit |
 | test_withdraw | 2 | Successful withdrawal, overdraft/empty/zero/negative rejection |
 | test_transactions_list | 2 | Deposit in list, reset clears list and back navigation |
@@ -160,9 +199,9 @@ If `banking-app/index.html` does not exist, `run_tests.py --local` will warn and
 
 ---
 
-## Playwright UI parity
+## Playwright Test UI (`--ui`)
 
-The TypeScript repo runs `playwright test --ui`, which opens Playwright's native interactive UI (test picker, time-travel debugging, watch mode). **pytest-playwright has no equivalent** — the Playwright Test UI is part of the Node.js runner. In Python, use `--headed` (visible browser) as the best available substitute. For full Playwright UI, use the TypeScript suite. See [PLAYWRIGHT_ALTERNATIVES.md](PLAYWRIGHT_ALTERNATIVES.md) for feature comparison and trace visualization.
+`python run_tests.py --ui` (and `--ui --full`, `--ui --local`, `--ui --local --full`) launches the **TypeScript** Playwright Test UI from `playwright-ui/`: interactive test picker, watch mode, time-travel. The same scenarios run as in Python; test set (smoke vs full) and app (live vs local) follow the **Command matrix** above. For Python vs Node runner and trace visualization, see [PLAYWRIGHT_ALTERNATIVES.md](PLAYWRIGHT_ALTERNATIVES.md).
 
 ---
 
@@ -191,4 +230,4 @@ src/banking/
 
 ---
 
-See [README.md](README.md) for setup steps and structure overview.
+See [README.md](README.md) for setup and structure. **Quick recap:** use the **Command matrix** at the top of this guide for the eight main combinations (Python vs TS UI × smoke vs full × live vs local).

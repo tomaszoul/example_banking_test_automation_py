@@ -3,9 +3,10 @@
 CLI to run banking E2E tests.
 
 Flow (mirrors TS e2e-tests/utils/reporting/run-tests.ts):
-1. Prune old reports (keep N-1 so new report fills last slot).
-2. Run pytest with HTML report + Playwright artifacts.
-3. Post-run: optionally open report and/or traces in browser.
+1. With --local: prepare local banking-app (utils.local_banking_app), serve and wait until healthy, then point tests at it.
+2. Prune old reports (keep N-1 so new report fills last slot).
+3. Run pytest or Playwright UI with HTML report + artifacts.
+4. Post-run: optionally open report and/or traces in browser.
 """
 import argparse
 import os
@@ -22,15 +23,42 @@ from utils.reporting import (
     report_html_path,
 )
 from utils.reporting.report_config import KEEP_COUNT, REPORT_PORTAL
+from utils.local_banking_app import (
+    LOCAL_LOGIN_URL,
+    prepare_and_serve_local,
+)
 
 REPO_ROOT = Path(__file__).resolve().parent
+PLAYWRIGHT_UI_DIR = REPO_ROOT / "playwright-ui"
+
+
+def _run_playwright_ui(env: dict, *, local: bool) -> None:
+    """Prepare local app if requested (build-up + healthy), then run `npx playwright test --ui`."""
+    if local:
+        prepare_and_serve_local(REPO_ROOT)
+        env["BANK_BASE_URL"] = LOCAL_LOGIN_URL
+    if not (PLAYWRIGHT_UI_DIR / "package.json").exists():
+        print("WARNING: playwright-ui/package.json not found. Run: cd playwright-ui && npm install")
+        sys.exit(1)
+    cmd = ["npx", "playwright", "test", "--ui"]
+    result = subprocess.run(cmd, env=env, cwd=PLAYWRIGHT_UI_DIR)
+    sys.exit(result.returncode)
 
 
 def main() -> None:
     """Parse args, set env, prune reports, run pytest, optionally open report and traces."""
     parser = argparse.ArgumentParser(description="Run banking E2E tests")
-    parser.add_argument("--local", action="store_true", help="Use local banking-app on :8081")
+    parser.add_argument(
+        "--local",
+        action="store_true",
+        help="Prepare, serve and health-check local banking-app (port 8081), then run tests against it. Run download_app.py once first.",
+    )
     parser.add_argument("--full", action="store_true", help="Run with all 5 customers")
+    parser.add_argument(
+        "--ui",
+        action="store_true",
+        help="Run in TS Playwright Test UI (playwright-ui/). Combines with --full (smoke vs all tests) and --local (live vs local app).",
+    )
     parser.add_argument("--open", action="store_true", help="Open HTML report in browser after run")
     parser.add_argument(
         "--headed",
@@ -54,6 +82,21 @@ def main() -> None:
     )
     args, pytest_args = parser.parse_known_args()
 
+    env = os.environ.copy()
+    if args.local:
+        env["BANK_LOCAL"] = "1"
+        env["BANK_BASE_URL"] = LOCAL_LOGIN_URL
+    if args.full:
+        env["BANK_FULL_RUN"] = "1"
+    if args.debug:
+        env["PWDEBUG"] = "1"
+
+    # --ui: launch Node Playwright Test UI (TS runner in playwright-ui/).
+    # Respects --full (smoke vs full test set) and --local (live vs local app); all 4 combinations supported.
+    if args.ui:
+        _run_playwright_ui(env, local=args.local)
+        return
+
     # Standalone: open failed traces without running (only --open-trace-failed)
     # --open-trace-all always runs tests first to record traces
     trace_flags = args.open_trace_failed or args.open_trace_all
@@ -63,15 +106,6 @@ def main() -> None:
         except Exception:
             pass
         sys.exit(0)
-
-    env = os.environ.copy()
-    if args.local:
-        env["BANK_LOCAL"] = "1"
-        env["BANK_BASE_URL"] = "http://127.0.0.1:8081/#/login"
-    if args.full:
-        env["BANK_FULL_RUN"] = "1"
-    if args.debug:
-        env["PWDEBUG"] = "1"
 
     run_id = build_run_id()
     env["PW_RUN_ID"] = run_id
@@ -86,37 +120,7 @@ def main() -> None:
     report_html = report_html_path()
 
     if args.local:
-        banking_app = REPO_ROOT / "banking-app"
-        if not (banking_app / "index.html").exists():
-            print("WARNING: banking-app/index.html not found. Run: python download_app.py")
-            sys.exit(1)
-        if not (banking_app / "customerView.html").exists():
-            print("WARNING: Angular templates missing. Run: python download_app.py")
-            sys.exit(1)
-        # Start local server in background
-        import threading
-
-        def serve():
-            # --bind 127.0.0.1 fixes IPv6 binding issue on Windows (ERR_EMPTY_RESPONSE)
-            proc = subprocess.Popen(
-                [sys.executable, "-m", "http.server", "8081", "--bind", "127.0.0.1"],
-                cwd=banking_app,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            proc.wait()
-
-        server = threading.Thread(target=serve, daemon=True)
-        server.start()
-        import time
-        import urllib.request
-
-        for _ in range(30):
-            try:
-                urllib.request.urlopen("http://127.0.0.1:8081/", timeout=1)
-                break
-            except Exception:
-                time.sleep(0.5)
+        prepare_and_serve_local(REPO_ROOT)
 
     html_report_args = [
         f"--html={report_html}",

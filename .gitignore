@@ -6,3 +6,10 @@ test-reports/
 .venv/
 venv/
 *.egg-info/
+
+# Playwright UI (Node)
+playwright-ui/node_modules/
+playwright-ui/test-results/
+playwright-ui/playwright-report/
+playwright-ui/blob-report/
+playwright-ui/.cache/
